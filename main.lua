@@ -9,7 +9,10 @@ TILE_SIZE = 16
 WORLD_WIDTH = 4 -- tiles
 WORLD_HEIGHT = 4 -- tiles
 
+WATER = 626
+
 tilesheet = love.graphics.newImage('LPC_overworld_assembly.png')
+frames = GenerateQuads(tilesheet, TILE_SIZE, TILE_SIZE)
 
 function love.load()
     --open up the window with our virtual resolution
@@ -17,6 +20,16 @@ function love.load()
     {fullscreen = false,
     resizable = true,   
     vsync = true})
+    tiles = {}
+    for y = 1, WORLD_HEIGHT do
+        tiles[y] = {}
+        for x = 1, WORLD_WIDTH do
+            tiles[y][x] = Tile{x = x, y = y,
+                texture = tilesheet, frame = WATER}
+        
+        end
+    end
+
 
     love.keyboard.keysPressed = {}
     love.mouse.clicks = {}
@@ -50,12 +63,36 @@ function love.mouse.wasClicked(button)
 end
 
 function love.update(dt)
+    if love.keyboard.wasPressed('escape') then
+        love.event.quit()
+    end
+    
 
+
+
+    love.keyboard.keysPressed = {}
+    love.mouse.clicks = {}
 end
 
 function love.draw()
     --push is used to render at a virtual resolution
     push:apply('start')
 
+    for y, row in pairs(tiles) do
+        for x, tile in pairs(row) do
+            tile:render()
+        end
+    end
+
+    love.graphics.setLineWidth(1)
+    for i = 0, VIRTUAL_HEIGHT, TILE_SIZE do
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.line(0, i, VIRTUAL_WIDTH, i)
+    end
+
+    for i = 0, VIRTUAL_WIDTH, TILE_SIZE do
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.line(i, 0, i, VIRTUAL_HEIGHT)
+    end
     push:apply('end')
 end
