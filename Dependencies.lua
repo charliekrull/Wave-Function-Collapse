@@ -3,3 +3,4 @@ push = require "lib/push"
 
 require 'util'
 require 'Tile'
+require 'constants'

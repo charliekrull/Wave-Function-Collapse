@@ -6,6 +6,7 @@ function Tile:init(def)
 
     self.texture = def.texture
     self.frame = def.frame
+    self.sockets = SOCKETS[self.frame]
 end
 
 --probably only used in case of animated tiles

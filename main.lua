@@ -1,34 +1,24 @@
 require 'Dependencies'
 
---useful coonstants
-VIRTUAL_WIDTH = 500
-VIRTUAL_HEIGHT = 282
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
-TILE_SIZE = 16
-WORLD_WIDTH = 4 -- tiles
-WORLD_HEIGHT = 4 -- tiles
-
-WATER = 626
-
 tilesheet = love.graphics.newImage('LPC_overworld_assembly.png')
 frames = GenerateQuads(tilesheet, TILE_SIZE, TILE_SIZE)
+font = love.graphics.newFont('font.ttf', 8)
 
 function love.load()
+    math.randomseed(os.time())
+    love.graphics.setDefaultFilter('nearest', 'nearest')
+    love.graphics.setFont(font)
+
     --open up the window with our virtual resolution
     push:setupScreen(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT,
     {fullscreen = false,
     resizable = true,   
     vsync = true})
+    
+    cells = {}
     tiles = {}
-    for y = 1, WORLD_HEIGHT do
-        tiles[y] = {}
-        for x = 1, WORLD_WIDTH do
-            tiles[y][x] = Tile{x = x, y = y,
-                texture = tilesheet, frame = WATER}
-        
-        end
-    end
+    affectedCells = {}
+    generateMap()
 
 
     love.keyboard.keysPressed = {}
@@ -94,5 +84,135 @@ function love.draw()
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.line(i, 0, i, VIRTUAL_HEIGHT)
     end
+
+    for y, row in pairs(cells) do
+        for x, cell in pairs(row) do
+            love.graphics.print(#cell.options, (cell.x - 1) * TILE_SIZE + TILE_SIZE / 2,
+            (cell.y - 1) * TILE_SIZE + TILE_SIZE / 3)
+    
+        end
+    end
     push:apply('end')
+end
+
+function generateMap()
+    for y = 1, WORLD_HEIGHT do
+        cells[y] = {}
+        tiles[y] = {}
+        for x = 1, WORLD_WIDTH do
+            --every cell starts with every possibility
+            cells[y][x] = {x = x, y = y, collapsed = false, 
+            options = {WATER, 53, 54, 55,
+                                79, 80, 81,
+                                105, 106, 107}}
+            
+
+            
+        end
+    end
+
+    local minEntropyCells = getMinEntropyCells(cells)
+
+        
+
+    --pick a random cell from the minimum cells and collapse it, ie set its domain to exactly one tile
+    --choosing one tile at random from the possibilities
+    local choice = table.randomChoice(minEntropyCells)
+    collapseCell(cells, choice.x, choice.y)
+
+    
+
+end
+
+function getMinEntropyCells(cells)
+    --find the cells with the least entropy (possibilities), here represented by #cells[y][x]
+    --put their x and y in a table
+    local minEntropyCells = {}
+
+    --baseline will be the first cell's entropy
+    local minEntropy = #cells[1][1]
+    for y, row in pairs(cells) do
+        for x, cell in pairs(row) do
+            if #cell < minEntropy then
+                minEntropyCells = {}
+                table.insert{minEntropyCells, {['x'] = x, ['y'] = y}}
+
+            elseif #cell == minEntropy then
+                table.insert(minEntropyCells, {['x'] = x, ['y'] = y})
+
+                               
+            
+            end
+        end
+    end
+
+    return minEntropyCells
+end
+
+function collapseCell(cells, x, y)
+    cells[y][x].collapsed = true
+    cells[y][x].options = {table.randomChoice(cells[y][x].options)}
+    
+    
+
+    local t = Tile{x = x, y = y, texture = tilesheet, frame = cells[y][x].options[1]}
+    tiles[y][x] = t
+    print(x, y)
+    if cells[y-1] then
+        removeInvalidTiles(tiles[y][x], cells[y - 1][x]) --north
+        print_r(cells[y-1][x])
+    end
+
+    if cells[y][x+1] then
+        removeInvalidTiles(tiles[y][x], cells[y][x + 1]) -- east
+        print_r(cells[y][x+1])
+    end
+    if cells[y+1] then
+        removeInvalidTiles(tiles[y][x], cells[y+1][x]) -- south
+        print_r(cells[y+1][x])
+    end
+
+    if cells[y][x-1] then
+        removeInvalidTiles(tiles[y][x], cells[y][x-1])--west
+        print_r(cells[y][x-1])
+    end
+    
+    propogate(cells, x, y)
+end
+
+function propogate(cells, startingX, startingY) 
+    table.insert(affectedCells, {x = startingX,  y = startingY})
+
+    local currentCell = cells[affectedCells[1].y][affectedCells[1].x]
+    print(currentCell.x, currentCell.y)
+   
+    
+    
+end
+
+function isValid(option1, option2, direction) --direction is the direction from option 1 to option 2
+   
+    if direction == 'north' then
+        return SOCKETS[option1]['north'] == SOCKETS[option2]['south']
+        
+    elseif direction == 'east' then
+        return SOCKETS[option1]['east'] == SOCKETS[option2]['west']
+        
+    elseif direction == 'south' then
+        return SOCKETS[option1]['south'] == SOCKETS[option2]['north']
+
+    elseif direction == 'west' then
+
+        return SOCKETS[option1]['west'] == SOCKETS[option2]['east']
+        
+    
+    end
+
+
+end
+
+function removeInvalidTiles(placedTile, checkCell)
+    for i = 1, #checkCell.options do
+        
+    end
 end
