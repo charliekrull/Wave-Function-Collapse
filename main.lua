@@ -74,24 +74,24 @@ function love.draw()
         end
     end
 
-    love.graphics.setLineWidth(1)
-    for i = 0, VIRTUAL_HEIGHT, TILE_SIZE do
-        love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.line(0, i, VIRTUAL_WIDTH, i)
-    end
+    -- love.graphics.setLineWidth(1)
+    -- for i = 0, VIRTUAL_HEIGHT, TILE_SIZE do
+    --     love.graphics.setColor(1, 1, 1, 1)
+    --     love.graphics.line(0, i, VIRTUAL_WIDTH, i)
+    -- end
 
-    for i = 0, VIRTUAL_WIDTH, TILE_SIZE do
-        love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.line(i, 0, i, VIRTUAL_HEIGHT)
-    end
+    -- for i = 0, VIRTUAL_WIDTH, TILE_SIZE do
+    --     love.graphics.setColor(1, 1, 1, 1)
+    --     love.graphics.line(i, 0, i, VIRTUAL_HEIGHT)
+    -- end
 
-    for y, row in pairs(cells) do
-        for x, cell in pairs(row) do
-            love.graphics.print(#cell.options, (cell.x - 1) * TILE_SIZE + TILE_SIZE / 2,
-            (cell.y - 1) * TILE_SIZE + TILE_SIZE / 3)
+    -- for y, row in pairs(cells) do
+    --     for x, cell in pairs(row) do
+    --         love.graphics.print(#cell.options, (cell.x - 1) * TILE_SIZE + TILE_SIZE / 2,
+    --         (cell.y - 1) * TILE_SIZE + TILE_SIZE / 3)
     
-        end
-    end
+    --     end
+    -- end
     push:apply('end')
 end
 
@@ -110,18 +110,39 @@ function generateMap()
             
         end
     end
+    
+    while not isSolved() do
+        local minEntropyCells = getMinEntropyCells(cells)
 
-    local minEntropyCells = getMinEntropyCells(cells)
+            
 
-        
+        --pick a random cell from the minimum cells and collapse it, ie set its domain to exactly one tile
+        --choosing one tile at random from the possibilities
+        local choice = table.randomChoice(minEntropyCells)
+        collapseCell(cells, choice.x, choice.y)
 
-    --pick a random cell from the minimum cells and collapse it, ie set its domain to exactly one tile
-    --choosing one tile at random from the possibilities
-    local choice = table.randomChoice(minEntropyCells)
-    collapseCell(cells, choice.x, choice.y)
+    end
 
     
 
+end
+
+function isSolved() 
+    for y = 1, WORLD_HEIGHT do
+        if not tiles[y] then
+            return false
+        else
+
+            for x = 1, WORLD_WIDTH do
+                if not tiles[y][x] then
+                    return false
+                end
+            end
+        end
+    end
+
+    return true
+   
 end
 
 function getMinEntropyCells(cells)
@@ -157,24 +178,24 @@ function collapseCell(cells, x, y)
 
     local t = Tile{x = x, y = y, texture = tilesheet, frame = cells[y][x].options[1]}
     tiles[y][x] = t
-    print(x, y)
+    --print(x, y, tiles[y][x].frame)
     if cells[y-1] then
-        removeInvalidTiles(tiles[y][x], cells[y - 1][x]) --north
-        print_r(cells[y-1][x])
+        removeInvalidTiles(cells[y][x], cells[y - 1][x]) --north
+        --print_r(cells[y-1][x])
     end
 
     if cells[y][x+1] then
-        removeInvalidTiles(tiles[y][x], cells[y][x + 1]) -- east
-        print_r(cells[y][x+1])
+        removeInvalidTiles(cells[y][x], cells[y][x + 1]) -- east
+        --print_r(cells[y][x+1])
     end
     if cells[y+1] then
-        removeInvalidTiles(tiles[y][x], cells[y+1][x]) -- south
-        print_r(cells[y+1][x])
+        removeInvalidTiles(cells[y][x], cells[y+1][x]) -- south
+        --print_r(cells[y+1][x])
     end
 
     if cells[y][x-1] then
-        removeInvalidTiles(tiles[y][x], cells[y][x-1])--west
-        print_r(cells[y][x-1])
+        removeInvalidTiles(cells[y][x], cells[y][x-1])--west
+        --print_r(cells[y][x-1])
     end
     
     propogate(cells, x, y)
@@ -183,8 +204,28 @@ end
 function propogate(cells, startingX, startingY) 
     table.insert(affectedCells, {x = startingX,  y = startingY})
 
-    local currentCell = cells[affectedCells[1].y][affectedCells[1].x]
-    print(currentCell.x, currentCell.y)
+    while #affectedCells > 0 do
+
+        local currentCell = cells[affectedCells[1].y][affectedCells[1].x]
+        --print(currentCell.x, currentCell.y)
+        if cells[currentCell.y - 1] then
+            removeInvalidTiles(currentCell, cells[currentCell.y-1][currentCell.x])
+        end
+
+        if cells[currentCell.y][currentCell.x + 1] then
+            removeInvalidTiles(currentCell, cells[currentCell.y][currentCell.x+1])
+        end
+
+        if cells[currentCell.y+1] then
+            removeInvalidTiles(currentCell, cells[currentCell.y+1][currentCell.x])
+        end
+
+        if cells[currentCell.y][currentCell.x-1] then
+            removeInvalidTiles(currentCell, cells[currentCell.y][currentCell.x-1])
+        end
+        table.remove(affectedCells, 1)
+    end
+
    
     
     
@@ -211,8 +252,45 @@ function isValid(option1, option2, direction) --direction is the direction from 
 
 end
 
-function removeInvalidTiles(placedTile, checkCell)
-    for i = 1, #checkCell.options do
+function removeInvalidTiles(originCell, checkCell)
+    local toRemove = {}
+    local direction = ''
+
+    if checkCell.y < originCell.y then
+        direction = 'north'
+
+    elseif checkCell.x > originCell.x then
+        direction = 'east'
         
+    elseif checkCell.y > originCell.y then
+        direction = 'south'
+        
+    elseif checkCell.x < originCell.x then
+        direction = 'west'
+    
+    end
+
+    for i = 1, #checkCell.options do
+        local matchFound = false
+        for j = 1, #originCell.options do
+            if isValid(originCell.options[j], checkCell.options[i], direction) then
+                matchFound = true
+            end
+        end
+
+        if not matchFound then
+            table.insert(toRemove, checkCell.options[i])
+        end
+        matchFound = false
+    end
+
+    if #toRemove > 0 then
+        table.insert(affectedCells, {x = checkCell.x, y = checkCell.y})
+    end
+
+    --remove cells
+    while #toRemove > 0 do
+        table.remove(checkCell.options, table.find(checkCell.options, toRemove[1]))
+        table.remove(toRemove, 1)
     end
 end

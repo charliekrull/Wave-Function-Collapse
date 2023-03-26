@@ -93,3 +93,14 @@ function map(inputStart, inputEnd, outputStart, outPutEnd, value)
 
 end
 
+function table.find(tbl, element)
+    --[[
+        Returns the index of element in tbl, nil if not found
+    ]]
+    for k, val in pairs(tbl) do
+        if val == element then
+            return k
+        end
+    end
+    return nil
+end
