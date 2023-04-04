@@ -6,6 +6,7 @@ font = love.graphics.newFont('font.ttf', 8)
 
 function love.load()
     math.randomseed(os.time())
+    love.window.setTitle('Wave Function Collapse')
     love.graphics.setDefaultFilter('nearest', 'nearest')
     love.graphics.setFont(font)
 
@@ -14,11 +15,15 @@ function love.load()
     {fullscreen = false,
     resizable = true,   
     vsync = true})
-    
+
+
     cells = {}
     tiles = {}
     affectedCells = {}
+    
     generateMap()
+    
+    
 
 
     love.keyboard.keysPressed = {}
@@ -56,6 +61,10 @@ function love.update(dt)
     if love.keyboard.wasPressed('escape') then
         love.event.quit()
     end
+
+    if love.keyboard.wasPressed('space') then
+        
+    end
     
 
 
@@ -63,6 +72,7 @@ function love.update(dt)
     love.keyboard.keysPressed = {}
     love.mouse.clicks = {}
 end
+
 
 function love.draw()
     --push is used to render at a virtual resolution
@@ -110,16 +120,58 @@ function generateMap()
             
         end
     end
+
     
+    supportTable = calculateSupport()
+
     while not isSolved() do
-        local minEntropyCells = getMinEntropyCells(cells)
+    
+        local didCollapse = false
+        for y, row in pairs(cells) do
+            for x, cell in pairs(row) do
+                if #cell.options == 1 then
+                    collapseCell(cells, x, y)
+                    didCollapse = true
+                elseif #cell.options == 0 then
+                    print('uh-oh')
+                    break
+                
+                end
+            end
+        end
 
+        if not didCollapse then
             
+        
+            local minEntropyCells = getMinEntropyCells(cells)
 
-        --pick a random cell from the minimum cells and collapse it, ie set its domain to exactly one tile
-        --choosing one tile at random from the possibilities
-        local choice = table.randomChoice(minEntropyCells)
-        collapseCell(cells, choice.x, choice.y)
+
+
+
+            --pick a random cell from the minimum cells and collapse it, ie set its domain to exactly one tile
+            --choosing one tile at random from the possibilities
+            local choice = table.randomChoice(minEntropyCells)
+            if choice ~= nil then
+                collapseCell(cells, choice['x'], choice['y'])
+            else
+                
+                break
+                
+                
+            end
+        end
+
+        --last cleanup to make sure all cells are properly collapsed
+        for y, row in pairs(cells) do
+            for x, cell in pairs(row) do
+                if not cell.collapsed then
+                    collapseCell(cells, x, y)
+                end
+            end
+        end
+        --end
+
+    
 
     end
 
@@ -129,15 +181,11 @@ end
 
 function isSolved() 
     for y = 1, WORLD_HEIGHT do
-        if not tiles[y] then
-            return false
-        else
-
-            for x = 1, WORLD_WIDTH do
-                if not tiles[y][x] then
-                    return false
-                end
+        for x = 1, WORLD_WIDTH do
+            if #cells[y][x].options > 1 then
+                return false
             end
+            
         end
     end
 
@@ -146,57 +194,56 @@ function isSolved()
 end
 
 function getMinEntropyCells(cells)
-    --find the cells with the least entropy (possibilities), here represented by #cells[y][x]
+    --find the cells with the least entropy (possibilities), here represented by #cells[y][x].options
     --put their x and y in a table
     local minEntropyCells = {}
 
-    --baseline will be the first cell's entropy
-    local minEntropy = #cells[1][1]
+    --baseline will be a high number so it is broken by the first cell with entropy above 1
+    local minEntropy = 11
     for y, row in pairs(cells) do
         for x, cell in pairs(row) do
-            if #cell < minEntropy then
+            if #cell.options < minEntropy and #cell.options > 1 then
                 minEntropyCells = {}
-                table.insert{minEntropyCells, {['x'] = x, ['y'] = y}}
-
-            elseif #cell == minEntropy then
                 table.insert(minEntropyCells, {['x'] = x, ['y'] = y})
+                minEntropy = #cell.options
 
-                               
+            elseif #cell.options == minEntropy and #cell.options > 1 then
+                table.insert(minEntropyCells, {['x'] = x, ['y'] = y})
+            
+        
             
             end
         end
     end
-
+    
     return minEntropyCells
 end
 
+
+
 function collapseCell(cells, x, y)
     cells[y][x].collapsed = true
-    cells[y][x].options = {table.randomChoice(cells[y][x].options)}
+    local removedOptions = {}
+    local choice = cells[y][x].options[math.random(#cells[y][x].options)]
+    for i = 1, #cells[y][x].options do
+        local option = cells[y][x].options[i]
+        if option ~= choice then
+            updateSupport(x, y, option)
+            table.insert(removedOptions, option)
+        end
     
+    end
+
+    for k, opt in pairs(removedOptions) do
+        table.remove(cells[y][x].options, table.find(cells[y][x].options, opt))
+    end
+
+
     
 
-    local t = Tile{x = x, y = y, texture = tilesheet, frame = cells[y][x].options[1]}
+    local t = Tile{x = x, y = y, texture = tilesheet, frame = choice}
     tiles[y][x] = t
-    --print(x, y, tiles[y][x].frame)
-    if cells[y-1] then
-        removeInvalidTiles(cells[y][x], cells[y - 1][x]) --north
-        --print_r(cells[y-1][x])
-    end
-
-    if cells[y][x+1] then
-        removeInvalidTiles(cells[y][x], cells[y][x + 1]) -- east
-        --print_r(cells[y][x+1])
-    end
-    if cells[y+1] then
-        removeInvalidTiles(cells[y][x], cells[y+1][x]) -- south
-        --print_r(cells[y+1][x])
-    end
-
-    if cells[y][x-1] then
-        removeInvalidTiles(cells[y][x], cells[y][x-1])--west
-        --print_r(cells[y][x-1])
-    end
+    
     
     propogate(cells, x, y)
 end
@@ -207,22 +254,95 @@ function propogate(cells, startingX, startingY)
     while #affectedCells > 0 do
 
         local currentCell = cells[affectedCells[1].y][affectedCells[1].x]
-        --print(currentCell.x, currentCell.y)
-        if cells[currentCell.y - 1] then
-            removeInvalidTiles(currentCell, cells[currentCell.y-1][currentCell.x])
+        
+        
+        -- if cells[currentCell.y - 1] then
+        --     local northInvalid = getInvalidTiles(currentCell.x, currentCell.y - 1)
+            
+        --     for k, opt in pairs(northInvalid) do
+        --         updateSupport(currentCell.x, currentCell.y, opt)
+        --         table.remove(cells[currentCell.y-1][currentCell.x].options, table.find(cells[currentCell.y-1][currentCell.x].options, opt))
+                
+        --     end
+            
+        -- end
+
+        -- if cells[currentCell.y][currentCell.x + 1] then
+        --     local eastInvalid = getInvalidTiles(currentCell.x+1, currentCell.y)
+            
+
+        --     for k, opt in pairs(eastInvalid) do
+        --         updateSupport(currentCell.x, currentCell.y, opt)
+        --         table.remove(cells[currentCell.y][currentCell.x+1].options, table.find(cells[currentCell.y][currentCell.x+1].options, opt))
+                
+        --     end
+            
+        -- end
+
+        -- if cells[currentCell.y+1] then
+        --     local southInvalid = getInvalidTiles(currentCell.x, currentCell.y+1)
+            
+        --     for k, opt in pairs(southInvalid) do
+        --         updateSupport(currentCell.x, currentCell.y, opt)
+        --         table.remove(cells[currentCell.y+1][currentCell.x].options, table.find(cells[currentCell.y+1][currentCell.x].options, opt))
+                
+
+        --     end
+           
+        -- end
+
+        -- if cells[currentCell.y][currentCell.x-1] then
+        --     local westInvalid = getInvalidTiles(currentCell.x-1, currentCell.y)
+            
+        --     for k, opt in pairs(westInvalid) do
+        --         updateSupport(currentCell.x, currentCell.y, opt)
+        --         table.remove(cells[currentCell.y][currentCell.x-1].options, table.find(cells[currentCell.y][currentCell.x-1].options, opt))
+                
+        --     end
+        -- end   
+        
+        
+        for k, opt in pairs(getInvalidTiles(currentCell.x, currentCell.y)) do
+            updateSupport(currentCell.x, currentCell.y, opt)
+            table.remove(cells[currentCell.y][currentCell.x].options, table.find(cells[currentCell.y][currentCell.x].options, opt))
         end
 
-        if cells[currentCell.y][currentCell.x + 1] then
-            removeInvalidTiles(currentCell, cells[currentCell.y][currentCell.x+1])
+        if cells[currentCell.y - 1] then
+            
+        
+            for k, opt in pairs(getInvalidTiles(currentCell.x, currentCell.y-1)) do
+                updateSupport(currentCell.x, currentCell.y-1, opt)
+                table.remove(cells[currentCell.y-1][currentCell.x].options, table.find(cells[currentCell.y-1][currentCell.x].options, opt))
+            end
+
+        end
+
+        if cells[currentCell.y][currentCell.x+1] then
+            for k, opt in pairs(getInvalidTiles(currentCell.x+1, currentCell.y)) do
+                updateSupport(currentCell.x+1, currentCell.y, opt)
+                table.remove(cells[currentCell.y][currentCell.x+1].options, table.find(cells[currentCell.y][currentCell.x+1].options, opt))
+            end
         end
 
         if cells[currentCell.y+1] then
-            removeInvalidTiles(currentCell, cells[currentCell.y+1][currentCell.x])
+            
+        
+            for k, opt in pairs(getInvalidTiles(currentCell.x, currentCell.y+1)) do
+                updateSupport(currentCell.x, currentCell.y+1, opt)
+                table.remove(cells[currentCell.y+1][currentCell.x].options, table.find(cells[currentCell.y+1][currentCell.x].options, opt))
+            end
         end
 
         if cells[currentCell.y][currentCell.x-1] then
-            removeInvalidTiles(currentCell, cells[currentCell.y][currentCell.x-1])
+            for k, opt in pairs(getInvalidTiles(currentCell.x-1, currentCell.y)) do
+                updateSupport(currentCell.x-1, currentCell.y, opt)
+                table.remove(cells[currentCell.y][currentCell.x-1].options, table.find(cells[currentCell.y][currentCell.x-1].options, opt))
+            end
         end
+
+        
+        
+
         table.remove(affectedCells, 1)
     end
 
@@ -252,45 +372,146 @@ function isValid(option1, option2, direction) --direction is the direction from 
 
 end
 
-function removeInvalidTiles(originCell, checkCell)
+
+function getInvalidTiles(x, y) 
     local toRemove = {}
-    local direction = ''
-
-    if checkCell.y < originCell.y then
-        direction = 'north'
-
-    elseif checkCell.x > originCell.x then
-        direction = 'east'
-        
-    elseif checkCell.y > originCell.y then
-        direction = 'south'
-        
-    elseif checkCell.x < originCell.x then
-        direction = 'west'
     
+    for k, opt in pairs(cells[y][x].options) do
+        if supportTable[y][x][opt]['north'] == 0 or supportTable[y][x][opt]['east'] == 0 or
+            supportTable[y][x][opt]['south'] == 0 or supportTable[y][x][opt]['west'] == 0 then
+                
+            table.insert(toRemove, opt)
+        end
+    end
+    
+
+    
+    if #toRemove > 0 then
+        table.insert(affectedCells, {x = x, y = y})
     end
 
-    for i = 1, #checkCell.options do
-        local matchFound = false
-        for j = 1, #originCell.options do
-            if isValid(originCell.options[j], checkCell.options[i], direction) then
-                matchFound = true
+    --return invalid options in a table
+    return toRemove
+    
+end
+
+function updateSupport(x, y, optionRemoved) 
+    --look north for a cell, if there is one, loop through its options
+    --check if each one matches the tile just removed, if so update the OPPOSITE
+    --direction in the supportTable entry for the neighboring cell'
+    if cells[y-1] then
+        for k, opt in pairs(cells[y-1][x].options) do
+            if isValid(optionRemoved, opt, 'north') then
+                supportTable[y-1][x][opt]['south'] = supportTable[y-1][x][opt]['south'] - 1
             end
         end
+    end
 
-        if not matchFound then
-            table.insert(toRemove, checkCell.options[i])
+    --east
+    if cells[y][x+1] then
+        for k, opt in pairs(cells[y][x + 1].options) do
+            if isValid(optionRemoved, opt, 'east') then
+                supportTable[y][x+1][opt]['west'] = supportTable[y][x+1][opt]['west'] - 1
+            end
         end
-        matchFound = false
     end
 
-    if #toRemove > 0 then
-        table.insert(affectedCells, {x = checkCell.x, y = checkCell.y})
+    --south
+    if cells[y+1] then
+        for k, opt in pairs(cells[y+1][x].options) do
+            if isValid(optionRemoved, opt, 'south') then
+                supportTable[y+1][x][opt]['north'] = supportTable[y+1][x][opt]['north'] - 1
+            end
+        end
     end
 
-    --remove cells
-    while #toRemove > 0 do
-        table.remove(checkCell.options, table.find(checkCell.options, toRemove[1]))
-        table.remove(toRemove, 1)
+    --west
+    if cells[y][x-1] then
+        for k, opt in pairs(cells[y][x-1].options) do
+            if isValid(optionRemoved, opt, 'west') then
+                supportTable[y][x-1][opt]['east'] = supportTable[y][x-1][opt]['east'] - 1
+            end
+        end
     end
+end
+
+
+function calculateSupport()
+    local returnedTable = {}
+    for y, row in pairs(cells) do
+        returnedTable[y] = {}
+        for x, cell in pairs(row) do
+            returnedTable[y][x] = {}
+            
+            for k, opt in pairs(cell.options) do
+                returnedTable[y][x][opt] = {}
+
+                --look north
+                local supportCounter = 0
+                if cells[cell.y-1] then
+                    for l, opt2 in pairs(cells[cell.y - 1][cell.x].options) do
+                        if isValid(opt, opt2, 'north') then
+                            supportCounter = supportCounter + 1
+                        end
+                    end
+                else
+                    supportCounter = 1
+                end
+
+                
+                returnedTable[y][x][opt]['north'] = supportCounter
+
+                supportCounter = 0
+
+                --look east
+                if cells[cell.y][cell.x + 1] then
+                    for l, opt3 in pairs(cells[cell.y][cell.x+1].options) do
+                        if isValid(opt, opt3, 'east') then
+                            supportCounter = supportCounter + 1
+                            
+                        end
+                    end
+                else
+                    supportCounter = 1
+                end
+
+                returnedTable[y][x][opt]['east'] = supportCounter
+
+                supportCounter = 0
+
+                --look south
+                if cells[cell.y+1] then
+                    for l, opt4 in pairs(cells[cell.y + 1][cell.x].options) do
+                        if isValid(opt, opt4, 'south') then
+                            supportCounter = supportCounter + 1
+                        end
+                    end
+                else
+                    supportCounter = 1
+                end
+                
+                returnedTable[y][x][opt]['south'] = supportCounter
+
+                supportCounter = 0
+
+                --look west
+                if cells[cell.y][cell.x-1] then
+                    for l, opt5 in pairs(cells[y][x-1].options) do
+                        if isValid(opt, opt5, 'west') then
+                            supportCounter = supportCounter + 1
+
+                        end
+                    end
+                else
+                    supportCounter = 1
+                end
+                
+                returnedTable[y][x][opt]['west'] = supportCounter
+                
+            end
+
+
+        end
+    end
+    return returnedTable
 end

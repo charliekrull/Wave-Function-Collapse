@@ -12,8 +12,15 @@ function table.slice(tbl, first, last, step)
 end
 
 function table.randomChoice(tbl) --returns single random element in tbl
-    local choice = tbl[math.random(#tbl)]
-    return choice
+    if #tbl > 0 then
+        local choice = tbl[math.random(#tbl)]
+        return choice
+
+    else
+        return nil
+    end
+
+
         
     
 end
