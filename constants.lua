@@ -58,5 +58,26 @@ SOCKETS = {[WATER] = {['north'] = 0, --2 bits, first bit is left or top half, se
     [107] = {['north'] = 2,
             ['east'] = 0,
             ['south'] = 0,
-            ['west'] = 2}
+            ['west'] = 2},
+
+    --inside corners
+    [2] = {['north'] = 3,
+        ['east'] = 2,
+        ['south'] = 2,
+        ['west'] = 3},
+        
+    [3] = {['north'] = 3,
+        ['east'] = 3,
+        ['south'] = 1,
+        ['west'] = 2},
+
+    [28] = {['north'] = 2,
+        ['east'] = 1,
+        ['south'] = 3,
+        ['west'] = 3},
+
+    [29] = {['north'] = 1,
+        ['east'] = 3,
+        ['south'] = 3,
+        ['west'] = 1}
 }

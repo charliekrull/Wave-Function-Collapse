@@ -114,7 +114,8 @@ function generateMap()
             cells[y][x] = {x = x, y = y, collapsed = false, 
             options = {WATER, 53, 54, 55,
                                 79, 80, 81,
-                                105, 106, 107}}
+                                105, 106, 107, 2, 3, 28, 29
+                                }}
             
 
             
@@ -148,6 +149,7 @@ function generateMap()
 
 
 
+
             --pick a random cell from the minimum cells and collapse it, ie set its domain to exactly one tile
             --choosing one tile at random from the possibilities
             local choice = table.randomChoice(minEntropyCells)
@@ -169,7 +171,7 @@ function generateMap()
                 end
             end
         end
-        --end
+        
 
     
 
@@ -199,7 +201,7 @@ function getMinEntropyCells(cells)
     local minEntropyCells = {}
 
     --baseline will be a high number so it is broken by the first cell with entropy above 1
-    local minEntropy = 11
+    local minEntropy = 999999
     for y, row in pairs(cells) do
         for x, cell in pairs(row) do
             if #cell.options < minEntropy and #cell.options > 1 then
