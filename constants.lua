@@ -3,8 +3,8 @@
 WINDOW_WIDTH = 768
 WINDOW_HEIGHT = 768
 TILE_SIZE = 16
-WORLD_WIDTH = 25-- tiles
-WORLD_HEIGHT = 25-- tiles
+WORLD_WIDTH = 30 -- tiles
+WORLD_HEIGHT = 30 -- tiles
 VIRTUAL_WIDTH = WORLD_WIDTH * TILE_SIZE
 VIRTUAL_HEIGHT = WORLD_HEIGHT * TILE_SIZE
 
@@ -80,4 +80,24 @@ SOCKETS = {[WATER] = {['north'] = 0, --2 bits, first bit is left or top half, se
         ['east'] = 3,
         ['south'] = 3,
         ['west'] = 1}
+}
+
+
+--how likely a tile is to be chosen, higher weights are more likely
+WEIGHTS = {  [WATER] = 30, 
+        [53] = 1,
+        [54] = 1, 
+        [55] = 1,
+        [79] = 1,
+        [80] = 10,
+        [81] = 1,
+        [105] = 1,
+        [106] = 1,
+        [107] = 1,
+        [2] = 1,
+        [3] = 1,
+        [28] = 1,
+        [29] = 1
+
+
 }

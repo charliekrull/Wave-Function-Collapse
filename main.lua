@@ -16,10 +16,10 @@ function love.load()
     resizable = true,   
     vsync = true})
 
-
     cells = {}
     tiles = {}
     affectedCells = {}
+    toCollapse = {}
     
     generateMap()
     
@@ -126,56 +126,36 @@ function generateMap()
     supportTable = calculateSupport()
 
     while not isSolved() do
+        for k, tbl in pairs(toCollapse) do
+            collapseCell(cells, tbl.x, tbl.y)
+
+        end
+        toCollapse = {}
     
-        local didCollapse = false
-        for y, row in pairs(cells) do
-            for x, cell in pairs(row) do
-                if #cell.options == 1 then
-                    collapseCell(cells, x, y)
-                    didCollapse = true
-                elseif #cell.options == 0 then
-                    print('uh-oh')
-                    break
-                
-                end
-            end
-        end
+        local minEntropyCells = getMinEntropyCells(cells)
 
-        if not didCollapse then
+
+
+        --pick a random cell from the minimum entropy cells and collapse it, ie set its domain to exactly one tile
+        --choosing one tile at random from the possibilities, accounting for their weight
+        local choice = table.randomChoice(minEntropyCells)
+        if choice ~= nil then
+            collapseCell(cells, choice['x'], choice['y'])
+        else
+            --print('choice is nil')
+            --break
             
-        
-            local minEntropyCells = getMinEntropyCells(cells)
-
-
-
-
-
-            --pick a random cell from the minimum cells and collapse it, ie set its domain to exactly one tile
-            --choosing one tile at random from the possibilities
-            local choice = table.randomChoice(minEntropyCells)
-            if choice ~= nil then
-                collapseCell(cells, choice['x'], choice['y'])
-            else
-                
-                break
-                
-                
-            end
+            
         end
+    
 
-        --last cleanup to make sure all cells are properly collapsed
-        for y, row in pairs(cells) do
-            for x, cell in pairs(row) do
-                if not cell.collapsed then
-                    collapseCell(cells, x, y)
-                end
-            end
-        end
+       
         
 
     
 
     end
+
 
     
 
@@ -184,7 +164,7 @@ end
 function isSolved() 
     for y = 1, WORLD_HEIGHT do
         for x = 1, WORLD_WIDTH do
-            if #cells[y][x].options > 1 then
+            if not tiles[y][x] then
                 return false
             end
             
@@ -196,20 +176,25 @@ function isSolved()
 end
 
 function getMinEntropyCells(cells)
-    --find the cells with the least entropy (possibilities), here represented by #cells[y][x].options
+    --find the cells with the least entropy, which requires some math when using weights
     --put their x and y in a table
     local minEntropyCells = {}
 
-    --baseline will be a high number so it is broken by the first cell with entropy above 1
+    --baseline will be a high number so it is broken by the first cell
     local minEntropy = 999999
     for y, row in pairs(cells) do
         for x, cell in pairs(row) do
-            if #cell.options < minEntropy and #cell.options > 1 then
+            local entropy = 0
+            for k, opt in pairs(cell.options) do
+                entropy = entropy + (WEIGHTS[opt] * math.log(WEIGHTS[opt]))
+            end
+            entropy = -entropy
+            if entropy < minEntropy and #cells[y][x].options > 1 then
                 minEntropyCells = {}
                 table.insert(minEntropyCells, {['x'] = x, ['y'] = y})
-                minEntropy = #cell.options
+                minEntropy = entropy
 
-            elseif #cell.options == minEntropy and #cell.options > 1 then
+            elseif entropy == minEntropy and #cells[y][x].options > 1 then
                 table.insert(minEntropyCells, {['x'] = x, ['y'] = y})
             
         
@@ -226,7 +211,8 @@ end
 function collapseCell(cells, x, y)
     cells[y][x].collapsed = true
     local removedOptions = {}
-    local choice = cells[y][x].options[math.random(#cells[y][x].options)]
+
+    local choice = getWeightedRandomTile(cells[y][x].options)
     for i = 1, #cells[y][x].options do
         local option = cells[y][x].options[i]
         if option ~= choice then
@@ -303,7 +289,7 @@ function propogate(cells, startingX, startingY)
         --     end
         -- end   
         
-        
+
         for k, opt in pairs(getInvalidTiles(currentCell.x, currentCell.y)) do
             updateSupport(currentCell.x, currentCell.y, opt)
             table.remove(cells[currentCell.y][currentCell.x].options, table.find(cells[currentCell.y][currentCell.x].options, opt))
@@ -342,8 +328,11 @@ function propogate(cells, startingX, startingY)
             end
         end
 
-        
-        
+        if #cells[currentCell.y][currentCell.x].options == 1 then
+            if not cells[currentCell.y][currentCell.x].collapsed then
+                table.insert(toCollapse, {x = currentCell.x, y = currentCell.y})
+            end
+        end
 
         table.remove(affectedCells, 1)
     end
@@ -516,4 +505,23 @@ function calculateSupport()
         end
     end
     return returnedTable
+end
+
+function sumOfWeights(options) -- used to determine our upper bound for the random number used to get a tile
+    local sum = 0
+    for k, opt in pairs(options) do
+        sum = sum + WEIGHTS[opt]
+    end
+
+    return sum
+end
+
+function getWeightedRandomTile(options)
+    local r = math.random(sumOfWeights(options))
+    for k, opt in pairs(options) do
+        r = r - WEIGHTS[opt]
+        if r <= 0 then
+            return opt
+        end
+    end
 end

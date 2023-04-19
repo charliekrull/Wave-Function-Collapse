@@ -111,3 +111,12 @@ function table.find(tbl, element)
     end
     return nil
 end
+
+function shuffle(tbl)
+    for i = #tbl, 2, -1 do
+        local rand = math.random(i)
+        tbl[i], tbl[rand] = tbl[rand], tbl[i]
+    end
+
+    return tbl
+end
