@@ -19,6 +19,10 @@ function love.load()
     inputMap = sti('inputMap.lua')
 
     snapshots = takeSnapshots(inputMap, 3, 3)
+
+    print_r(snapshots)
+
+   
     
 
     cells = {}
@@ -489,12 +493,13 @@ end
 
 function takeSnapshots(tilemap, width, height)
     local snapshots = {}
-    local returnedSnapshots = {}
+    local returnedSnapshots = {} --every snapshot will be unique, so the index of this table can serve as the id of that snapshot
     local data = tilemap.layers['Tile Layer 1'].data
     
     
 
     for y, row in pairs(data) do
+        snapshots[y] = {}
         for x, tile in pairs(row) do
             local snapshot = {}
             for snapy = 0, height - 1 do
@@ -504,33 +509,98 @@ function takeSnapshots(tilemap, width, height)
             end
            
             
-            table.insert(snapshots, snapshot)
+            snapshots[y][x] = {contents = snapshot, frequency = 1, neighbors = {
+                north = {},
+                east = {},
+                south = {},
+                west = {}
+            }}
         end
     end
-    
+   
     --count up the frequency of each snapshot
-    for k, shot in pairs(snapshots) do
+    for y, row in pairs(snapshots) do
+        for x, shot in pairs(row) do
+            
+
+
         
-        if #returnedSnapshots == 0 then
-            table.insert(returnedSnapshots, {contents = shot, frequency = 1})
+            if #returnedSnapshots == 0 then
+                table.insert(returnedSnapshots, shot)
 
-        else
-            local matchFound = false
-            for l, comparisonShot in pairs(returnedSnapshots) do
+            else
+                local matchFound = false
+                for l, comparisonShot in pairs(returnedSnapshots) do
 
-                if tablesMatch(shot, comparisonShot.contents) then
-                    comparisonShot.frequency = comparisonShot.frequency + 1
-                    matchFound = true
+                    if tablesMatch(shot.contents, comparisonShot.contents) then
+                        comparisonShot.frequency = comparisonShot.frequency + 1
+                        matchFound = true
+                    end
+                end
+
+                if not matchFound then
+                    table.insert(returnedSnapshots, shot)
+                end
+
+                
+            end
+            
+        end
+    
+        
+    end
+
+    for y, row in pairs(snapshots) do
+        for x, shot in pairs(row) do
+            --point to the snapshot under consideration in returnedSnapshots
+            local currentShotID
+            for k, comparisonShot in pairs(returnedSnapshots) do
+                if tablesMatch(shot.contents, comparisonShot.contents) then
+                    currentShotID = k
+                end
+
+            end
+            --look north
+            local currentNeighbor = snapshots[(y-1-1)% #snapshots + 1][x]
+            --see what index the north neighboring snapshot is in returnedSnapshots, put that index in the proper neighbors entry
+            for k, comparisonShot in pairs(returnedSnapshots) do
+                if tablesMatch(currentNeighbor.contents, comparisonShot.contents) and not table.contains(returnedSnapshots[currentShotID].neighbors.north, k) then
+                    table.insert(returnedSnapshots[currentShotID].neighbors.north, k)
+                    break
                 end
             end
 
-            if not matchFound then
-                table.insert(returnedSnapshots, {contents = shot, frequency = 1})
+            --east
+            currentNeighbor = snapshots[y][(x + 1 - 1)% #row + 1]
+            for k, comparisonShot in pairs(returnedSnapshots) do
+                if tablesMatch(currentNeighbor.contents, comparisonShot.contents) and not table.contains(returnedSnapshots[currentShotID].neighbors.east, k) then
+                    table.insert(returnedSnapshots[currentShotID].neighbors.east, k)
+                    break
+                end
             end
 
-            
+            --south
+            currentNeighbor = snapshots[(y + 1 - 1)% #snapshots + 1][x]
+            for k, comparisonShot in pairs(returnedSnapshots) do
+                if tablesMatch(currentNeighbor.contents, comparisonShot.contents) and not table.contains(returnedSnapshots[currentShotID].neighbors.south, k) then
+                    table.insert(returnedSnapshots[currentShotID].neighbors.south, k)
+                    break
+                end
+            end
+
+            --west
+            currentNeighbor = snapshots[y][(x - 1 - 1) % #row + 1]
+            for k, comparisonShot in pairs(returnedSnapshots) do
+                if tablesMatch(currentNeighbor.contents, comparisonShot.contents) and not table.contains(returnedSnapshots[currentShotID].neighbors.west, k) then
+                    table.insert(returnedSnapshots[currentShotID].neighbors.west, k)
+                    break
+                end
+            end
         end
-        
     end
+    
+   
+
+
     return returnedSnapshots
 end
