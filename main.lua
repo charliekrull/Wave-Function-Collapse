@@ -16,11 +16,16 @@ function love.load()
     resizable = true,   
     vsync = true})
 
+    inputMap = sti('inputMap.lua')
+
+    takeSnapshots(inputMap, 3, 3)
+
     cells = {}
     tiles = {}
     affectedCells = {}
     toCollapse = {}
     
+
     generateMap()
     
     
@@ -242,52 +247,6 @@ function propogate(cells, startingX, startingY)
     while #affectedCells > 0 do
 
         local currentCell = cells[affectedCells[1].y][affectedCells[1].x]
-        
-        
-        -- if cells[currentCell.y - 1] then
-        --     local northInvalid = getInvalidTiles(currentCell.x, currentCell.y - 1)
-            
-        --     for k, opt in pairs(northInvalid) do
-        --         updateSupport(currentCell.x, currentCell.y, opt)
-        --         table.remove(cells[currentCell.y-1][currentCell.x].options, table.find(cells[currentCell.y-1][currentCell.x].options, opt))
-                
-        --     end
-            
-        -- end
-
-        -- if cells[currentCell.y][currentCell.x + 1] then
-        --     local eastInvalid = getInvalidTiles(currentCell.x+1, currentCell.y)
-            
-
-        --     for k, opt in pairs(eastInvalid) do
-        --         updateSupport(currentCell.x, currentCell.y, opt)
-        --         table.remove(cells[currentCell.y][currentCell.x+1].options, table.find(cells[currentCell.y][currentCell.x+1].options, opt))
-                
-        --     end
-            
-        -- end
-
-        -- if cells[currentCell.y+1] then
-        --     local southInvalid = getInvalidTiles(currentCell.x, currentCell.y+1)
-            
-        --     for k, opt in pairs(southInvalid) do
-        --         updateSupport(currentCell.x, currentCell.y, opt)
-        --         table.remove(cells[currentCell.y+1][currentCell.x].options, table.find(cells[currentCell.y+1][currentCell.x].options, opt))
-                
-
-        --     end
-           
-        -- end
-
-        -- if cells[currentCell.y][currentCell.x-1] then
-        --     local westInvalid = getInvalidTiles(currentCell.x-1, currentCell.y)
-            
-        --     for k, opt in pairs(westInvalid) do
-        --         updateSupport(currentCell.x, currentCell.y, opt)
-        --         table.remove(cells[currentCell.y][currentCell.x-1].options, table.find(cells[currentCell.y][currentCell.x-1].options, opt))
-                
-        --     end
-        -- end   
         
 
         for k, opt in pairs(getInvalidTiles(currentCell.x, currentCell.y)) do
@@ -524,4 +483,30 @@ function getWeightedRandomTile(options)
             return opt
         end
     end
+end
+
+
+function takeSnapshots(tilemap, width, height)
+    local snapshots = {}
+    local data = tilemap.layers['Tile Layer 1'].data
+    
+    
+
+    for y, row in pairs(data) do
+        snapshots[y] = {}
+        for x, tile in pairs(row) do
+            local snapshot = {}
+            for snapy = 0, height - 1 do
+                for snapx = 0, width - 1 do
+                    table.insert(snapshot, data[((y + snapy-1) % tilemap.height)+1][((x + snapx-1) % tilemap.width)+1].gid)
+                end
+            end
+
+            snapshots[y][x] = snapshot
+
+        end
+    end
+    
+    print_r(snapshots[1][1])
+    
 end
