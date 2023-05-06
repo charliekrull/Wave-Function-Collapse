@@ -120,3 +120,7 @@ function shuffle(tbl)
 
     return tbl
 end
+
+function tablesMatch(a, b) -- rely on the fact that numbers can be coerced to strings a bit here, this won't work for tables that contain tables
+    return table.concat(a) == table.concat(b)
+end

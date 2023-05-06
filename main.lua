@@ -18,7 +18,8 @@ function love.load()
 
     inputMap = sti('inputMap.lua')
 
-    takeSnapshots(inputMap, 3, 3)
+    snapshots = takeSnapshots(inputMap, 3, 3)
+    
 
     cells = {}
     tiles = {}
@@ -488,12 +489,12 @@ end
 
 function takeSnapshots(tilemap, width, height)
     local snapshots = {}
+    local returnedSnapshots = {}
     local data = tilemap.layers['Tile Layer 1'].data
     
     
 
     for y, row in pairs(data) do
-        snapshots[y] = {}
         for x, tile in pairs(row) do
             local snapshot = {}
             for snapy = 0, height - 1 do
@@ -501,12 +502,35 @@ function takeSnapshots(tilemap, width, height)
                     table.insert(snapshot, data[((y + snapy-1) % tilemap.height)+1][((x + snapx-1) % tilemap.width)+1].gid)
                 end
             end
-
-            snapshots[y][x] = snapshot
-
+           
+            
+            table.insert(snapshots, snapshot)
         end
     end
     
-    print_r(snapshots[1][1])
-    
+    --count up the frequency of each snapshot
+    for k, shot in pairs(snapshots) do
+        
+        if #returnedSnapshots == 0 then
+            table.insert(returnedSnapshots, {contents = shot, frequency = 1})
+
+        else
+            local matchFound = false
+            for l, comparisonShot in pairs(returnedSnapshots) do
+
+                if tablesMatch(shot, comparisonShot.contents) then
+                    comparisonShot.frequency = comparisonShot.frequency + 1
+                    matchFound = true
+                end
+            end
+
+            if not matchFound then
+                table.insert(returnedSnapshots, {contents = shot, frequency = 1})
+            end
+
+            
+        end
+        
+    end
+    return returnedSnapshots
 end
