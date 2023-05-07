@@ -3,8 +3,8 @@
 WINDOW_WIDTH = 768
 WINDOW_HEIGHT = 768
 TILE_SIZE = 16
-WORLD_WIDTH = 30 -- tiles
-WORLD_HEIGHT = 30 -- tiles
+WORLD_WIDTH = 32-- tiles
+WORLD_HEIGHT = 32 -- tiles
 VIRTUAL_WIDTH = WORLD_WIDTH * TILE_SIZE
 VIRTUAL_HEIGHT = WORLD_HEIGHT * TILE_SIZE
 
@@ -15,6 +15,7 @@ SOCKETS = {[WATER] = {['north'] = 0, --2 bits, first bit is left or top half, se
                     ['south'] = 0,
                     ['west'] = 0
                     },
+                    
     [53] = {['north']= 0,
             ['east'] = 1,
             ['south'] = 1,

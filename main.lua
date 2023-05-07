@@ -16,9 +16,9 @@ function love.load()
     resizable = true,   
     vsync = true})
 
-    inputMap = sti('inputMap.lua')
+    inputMap = sti('inputMap2.lua')
 
-    snapshots = takeSnapshots(inputMap, 3, 3)
+    snapshots = takeSnapshots(inputMap, 2, 2)
 
     print_r(snapshots)
 
@@ -122,14 +122,20 @@ function generateMap()
         for x = 1, WORLD_WIDTH do
             --every cell starts with every possibility
             cells[y][x] = {x = x, y = y, collapsed = false, 
-            options = {WATER, 53, 54, 55,
+            --[[options = {WATER, 53, 54, 55,
                                 79, 80, 81,
                                 105, 106, 107, 2, 3, 28, 29
                                 }}
+            ]]
+            options = {}}
             
+            for k, opt in pairs(snapshots) do
+                table.insert(cells[y][x].options, k)
+            end
 
             
         end
+
     end
 
     
@@ -152,8 +158,8 @@ function generateMap()
         if choice ~= nil then
             collapseCell(cells, choice['x'], choice['y'])
         else
-            --print('choice is nil')
-            --break
+            print('choice is nil')
+            break
             
             
         end
@@ -196,7 +202,7 @@ function getMinEntropyCells(cells)
         for x, cell in pairs(row) do
             local entropy = 0
             for k, opt in pairs(cell.options) do
-                entropy = entropy + (WEIGHTS[opt] * math.log(WEIGHTS[opt]))
+                entropy = entropy + (snapshots[opt].frequency * math.log(snapshots[opt].frequency))
             end
             entropy = -entropy
             if entropy < minEntropy and #cells[y][x].options > 1 then
@@ -239,7 +245,7 @@ function collapseCell(cells, x, y)
 
     
 
-    local t = Tile{x = x, y = y, texture = tilesheet, frame = choice}
+    local t = Tile{x = x, y = y, texture = tilesheet, frame = snapshots[choice]['contents'][1]}
     tiles[y][x] = t
     
     
@@ -308,7 +314,7 @@ end
 
 function isValid(option1, option2, direction) --direction is the direction from option 1 to option 2
    
-    if direction == 'north' then
+    --[[if direction == 'north' then
         return SOCKETS[option1]['north'] == SOCKETS[option2]['south']
         
     elseif direction == 'east' then
@@ -322,7 +328,9 @@ function isValid(option1, option2, direction) --direction is the direction from 
         return SOCKETS[option1]['west'] == SOCKETS[option2]['east']
         
     
-    end
+    end]]
+
+    return table.contains(snapshots[option1]['neighbors'][direction], option2)
 
 
 end
@@ -474,7 +482,7 @@ end
 function sumOfWeights(options) -- used to determine our upper bound for the random number used to get a tile
     local sum = 0
     for k, opt in pairs(options) do
-        sum = sum + WEIGHTS[opt]
+        sum = sum + snapshots[opt].frequency
     end
 
     return sum
@@ -483,7 +491,7 @@ end
 function getWeightedRandomTile(options)
     local r = math.random(sumOfWeights(options))
     for k, opt in pairs(options) do
-        r = r - WEIGHTS[opt]
+        r = r - snapshots[opt].frequency
         if r <= 0 then
             return opt
         end
@@ -598,9 +606,6 @@ function takeSnapshots(tilemap, width, height)
             end
         end
     end
-    
-   
-
 
     return returnedSnapshots
 end
